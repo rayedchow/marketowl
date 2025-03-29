@@ -1,7 +1,7 @@
 import { Search } from "lucide-react"
 import ChatInterface from "@/components/chat-interface"
 import ConversationInsights from "@/components/conversation-insights"
-import NearbySellers from "@/components/nearby-sellers"
+import NearbySellers from "@/components/message-suggestions"
 
 export default function Home() {
   // Define the conversation score to be used in both components
@@ -27,14 +27,9 @@ export default function Home() {
       {/* Main Content */}
       <main className="flex flex-1 p-6 gap-6">
         {/* Left Sidebar */}
-        <div className="flex flex-col gap-6 w-full max-w-md">
+        <div className="flex flex-col gap-6 w-full">
           <ConversationInsights score={conversationScore} />
           <NearbySellers />
-        </div>
-
-        {/* Chat Area */}
-        <div className="flex-1">
-          <ChatInterface conversationScore={conversationScore} />
         </div>
       </main>
     </div>
