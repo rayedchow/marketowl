@@ -1,5 +1,4 @@
 import { Search } from "lucide-react"
-import ChatInterface from "@/components/chat-interface"
 import ConversationInsights from "@/components/conversation-insights"
 import NearbySellers from "@/components/message-suggestions"
 
