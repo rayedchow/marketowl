@@ -1,9 +1,13 @@
-from fastapi import FastAPI, WebSocket
+from fastapi import FastAPI, HTTPException, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from apify_client import ApifyClient
 from typing import List, Optional
 from pydantic import BaseModel
 import json
+
+from image_analyzer import analyze_image_with_llama
+
+
 
 app = FastAPI()
 
@@ -35,84 +39,19 @@ async def websocket_endpoint(websocket: WebSocket):
     finally:
         active_connections.remove(websocket)
 
-# Pydantic models for data validation
-
-
-class Location(BaseModel):
-    city: Optional[str]
-    state: Optional[str]
-
-
-class ListingPrice(BaseModel):
-    amount: Optional[str]
-    formatted_amount: Optional[str]
-
-
-class Photo(BaseModel):
-    photo_image_url: Optional[str]
-
-
-class Listing(BaseModel):
-    id: Optional[str]
-    listing_price: Optional[ListingPrice]
-    marketplace_listing_title: Optional[str]
-    custom_title: Optional[str]
-    location: Optional[Location]
-    listingUrl: Optional[str]
-    primary_listing_photo: Optional[Photo]
-    is_live: bool = False
-    is_pending: bool = False
-    is_sold: bool = False
-    address: Optional[str]
-
-
-# Initialize ApifyClient
-client = ApifyClient("apify_api_E5yHpZnaHxAgIIFSLFEojCpHWzXG4R13mKAb")
-
-
-@app.get("/api/listings", response_model=List[Listing])
-async def get_listings(query: str = "seattle apartments for rent", limit: int = 20):
-    run_input = {
-        "startUrls": [
-            {"url": f"https://www.facebook.com/marketplace/108056275889020/search?query={query}"}
-        ],
-        "resultsLimit": limit,
-    }
-
-    # Run the Actor
-    run = client.actor("U5DUNxhH3qKt5PnCf").call(run_input=run_input)
-
-    # Process results
-    listings = []
-    for item in client.dataset(run["defaultDatasetId"]).iterate_items():
-        listing = Listing(
-            id=item.get('id'),
-            listing_price=ListingPrice(
-                amount=item.get('listing_price', {}).get('amount'),
-                formatted_amount=item.get(
-                    'listing_price', {}).get('formatted_amount')
-            ),
-            marketplace_listing_title=item.get('marketplace_listing_title'),
-            custom_title=item.get('custom_title'),
-            location=Location(
-                city=item.get('location', {}).get('city'),
-                state=item.get('location', {}).get('state')
-            ),
-            listingUrl=item.get('listingUrl'),
-            primary_listing_photo=Photo(
-                photo_image_url=item.get(
-                    'primary_listing_photo', {}).get('photo_image_url')
-            ),
-            is_live=item.get('is_live', False),
-            is_pending=item.get('is_pending', False),
-            is_sold=item.get('is_sold', False),
-            address=item.get('address')
-        )
-        listings.append(listing)
-
-    return listings
-
-
 @app.get("/api/health")
 async def health_check():
     return {"status": "healthy"}
+
+# Endpoint to analyze an item's quality using Llama3.2
+@app.get("/api/analyze-image")
+async def analyze_image_endpoint(image_url: str):
+    """
+    Given an image URL, downloads the image, runs analysis with Llama3.2 via Ollama,
+    and returns the analysis results.
+    """
+    try:
+        analysis = await analyze_image_with_llama(image_url)
+        return {"image_url": image_url, "analysis": analysis}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
