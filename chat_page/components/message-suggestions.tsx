@@ -34,8 +34,8 @@ export default function NearbySellers() {
       const newMessage: ChatObject = {
         id: Date.now(),
         text: event.data,
-        prediction: "Pending...",
-        tone: "Neutral",
+        prediction: "Unknown",
+        tone: "Unknown",
       };
       setMessages((prev) => [...prev, newMessage]);
     };
@@ -55,8 +55,6 @@ export default function NearbySellers() {
   const handleSendMessage = (message: ChatObject) => {
     if (socket && socket.readyState === WebSocket.OPEN) {
       socket.send(message.text);
-      // Optionally, you can also add the message locally right away:
-      setMessages((prev) => [...prev, { ...message, id: Date.now() }]);
     }
   };
 

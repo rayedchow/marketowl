@@ -19,6 +19,14 @@ app.add_middleware(
 # Store active connections
 active_connections: List[WebSocket] = []
 
+# Update on Facebook Marketplace
+async def update_suggestions(message: str):
+    for connection in active_connections:
+        try:
+            await connection.send_text("Suggestions should be sent here")
+            # TODO: send actual suggestions for the frontend to format and display
+        except Exception as e:
+            print(f"Error sending message to client: {e}")
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
@@ -27,9 +35,8 @@ async def websocket_endpoint(websocket: WebSocket):
     try:
         while True:
             data = await websocket.receive_text()
-            # Broadcast message to all connected clients
-            for connection in active_connections:
-                await connection.send_text(data)
+            print(f"Received message: {data}")
+            # TODO: actually send the suggested message through the user's Facebook Marketplace
     except Exception as e:
         print(f"WebSocket error: {e}")
     finally:
