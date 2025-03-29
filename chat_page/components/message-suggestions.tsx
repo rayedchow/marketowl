@@ -30,14 +30,13 @@ export default function NearbySellers() {
     };
 
     ws.onmessage = (event: MessageEvent) => {
-      // Wrap the received plain text into a ChatMessage object
       const newMessage: ChatObject = {
         id: Date.now(),
         text: event.data,
         prediction: "Unknown",
         tone: "Unknown",
       };
-      setMessages((prev) => [...prev, newMessage]);
+      setMessages([newMessage]);
     };
 
     ws.onclose = () => {
