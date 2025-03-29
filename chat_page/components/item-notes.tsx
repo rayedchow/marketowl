@@ -5,27 +5,27 @@ import { useState } from "react"
 const sellers = [
   {
     id: 1,
-    product: "Stained",
+    product: "Appears Stained",
     seller: "Lower Value",
     location: "-2",
     image: "/placeholder.svg?height=80&width=80",
-    details: "The shirt shows noticeable staining in the armpit area, which affects its overall appearance and value. The stains appear to be sweat-related and may require professional cleaning to remove. This type of imperfection typically reduces the item's resale value."
+    details: "The shirt shows noticeable staining in the armpit area, which affects its overall appearance and value. This type of imperfection typically reduces the item's resale value."
   },
   {
     id: 2,
-    product: "Used like - Good",
+    product: "Listed as \"Used - Like New\"",
     seller: "Lower Value",
     location: "-2",
     image: "/placeholder.svg?height=80&width=80",
-    details: "The item is in good used condition with minor signs of wear from regular use. There may be slight fading or minimal pilling, but no significant damage or stains. While used, it maintains its functionality and basic aesthetic appeal."
+    details: "The item is in good used condition with minor signs of wear from regular use. There may be slight fading or minimal pilling, but no significant damage or stains. "
   },
   {
     id: 3,
-    product: "Anitque/Rare",
-    seller: "Positive Value",
+    product: "This item is Anitque/Rare",
+    seller: "Increased Value",
     location: "+3",
     image: "/placeholder.svg?height=80&width=80",
-    details: "This is a rare vintage piece with historical significance. Despite its age, it maintains excellent condition with authentic period details and craftsmanship. The rarity and antique status actually increase its value above similar modern items."
+    details: "This item does not appear frequently on Facebook Marketplace. You may not be able to find similar items elsewhere."
   },
 ]
 
@@ -36,7 +36,7 @@ export default function Attributes() {
     <div className="bg-[#0c0c1d] rounded-xl p-6 border border-purple-900/50 shadow-[0_0_15px_rgba(139,92,246,0.15)]">
       <div className="flex items-center gap-2 mb-6">
         <User className="h-6 w-6 text-purple-500" />
-        <h2 className="text-xl font-semibold">Keep In Mind!</h2>
+        <h2 className="text-xl font-semibold">Item Notes to Consider</h2>
       </div>
 
       <div className="space-y-4">

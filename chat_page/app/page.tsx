@@ -3,7 +3,7 @@
 import { Search } from "lucide-react"
 import ConversationInsights from "@/components/conversation-insights"
 import NearbySellers from "@/components/message-suggestions"
-import Attributes from "@/components/imperfections"
+import Attributes from "@/components/item-notes"
 
 export default function Home() {
   // Define the conversation score to be used in both components
