@@ -1,0 +1,13 @@
+{
+	"folders": [
+		{
+			"name": "dubs",
+			"path": "../.."
+		},
+		{
+			"name": "landingpage_princeton",
+			"path": "../../../../Downloads/landingpage_princeton"
+		}
+	],
+	"settings": {}
+}
