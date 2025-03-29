@@ -1,6 +1,9 @@
+"use client"
+
 import { Search } from "lucide-react"
 import ConversationInsights from "@/components/conversation-insights"
 import NearbySellers from "@/components/message-suggestions"
+import Attributes from "@/components/imperfections"
 
 export default function Home() {
   // Define the conversation score to be used in both components
@@ -29,6 +32,7 @@ export default function Home() {
         <div className="flex flex-col gap-6 w-full">
           <ConversationInsights score={conversationScore} />
           <NearbySellers />
+          <Attributes />
         </div>
       </main>
     </div>
