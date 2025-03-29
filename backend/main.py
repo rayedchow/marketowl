@@ -5,8 +5,8 @@ from typing import List, Optional
 from pydantic import BaseModel
 import json
 
+from facebook_marketplace_scraper import scrape_listing
 from image_analyzer import analyze_image_with_llama
-
 
 
 app = FastAPI()
@@ -39,18 +39,38 @@ async def websocket_endpoint(websocket: WebSocket):
     finally:
         active_connections.remove(websocket)
 
+
 @app.get("/api/health")
 async def health_check():
     return {"status": "healthy"}
 
+# # Endpoint to analyze an item's quality using Llama3.2
+# @app.get("/api/analyze-image")
+# async def analyze_image_endpoint(image_url: str):
+#     """
+#     Given an image URL, downloads the image, runs analysis with Llama3.2 via Ollama,
+#     and returns the analysis results.
+#     """
+#     try:
+#         analysis = await analyze_image_with_llama(image_url)
+#         return {"image_url": image_url, "analysis": analysis}
+#     except Exception as e:
+#         raise HTTPException(status_code=500, detail=str(e))
+
 # Endpoint to analyze an item's quality using Llama3.2
-@app.get("/api/analyze-image")
-async def analyze_image_endpoint(image_url: str):
+
+
+@app.get("/api/analyze-listing-image")
+async def analyze_listing_image_endpoint(listing_url: str):
     """
     Given an image URL, downloads the image, runs analysis with Llama3.2 via Ollama,
     and returns the analysis results.
     """
     try:
+        # listing_data = scrape_listing(listing_url)
+        # image_url = listing_data['primary_listing_photo']['photo_image_url']
+        image_url = "https://scontent-lga3-3.xx.fbcdn.net/v/t45.5328-4/486797386_2749418898780182_9150082727072859958_n.jpg?stp=c64.0.260.260a_dst-jpg_p261x260_tt6&_nc_cat=104&ccb=1-7&_nc_sid=247b10&_nc_ohc=iKP0IqdDxysQ7kNvgHg_XNV&_nc_oc=Adn2_AiZTMcJil6HkGad78N4-oeS9oCivdi4o6_ID4iv9wF0a0rv7vvPtow1JnH20d8&_nc_zt=23&_nc_ht=scontent-lga3-3.xx&_nc_gid=58xSHjQjqzuQ8bKiFr-pXg&oh=00_AYH-Bb5S3rssB20II0PzJQ20s5qiBQP8WzqDK-WgR1UTmg&oe=67EE5B10"
+
         analysis = await analyze_image_with_llama(image_url)
         return {"image_url": image_url, "analysis": analysis}
     except Exception as e:

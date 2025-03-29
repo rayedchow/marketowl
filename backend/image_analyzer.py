@@ -5,21 +5,17 @@ from io import BytesIO
 from PIL import Image
 from pydantic import BaseModel
 
+class Defect(BaseModel):
+    description: str
+    location: list[str]
+
+class ImageAnalysisResponse(BaseModel):
+    defects: list[Defect]
 
 async def download_image(url: str) -> bytes:
     async with httpx.AsyncClient() as client:
         response = await client.get(url)
         return response.content
-
-
-class Defect(BaseModel):
-    description: str
-    location: list[str]
-
-
-class ImageAnalysisResponse(BaseModel):
-    defects: list[Defect]
-
 
 async def analyze_image_with_llama(image_url: str) -> str:
     # Download the image
