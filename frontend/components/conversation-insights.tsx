@@ -1,7 +1,6 @@
 "use client"
 
 import { BarChart3 } from "lucide-react"
-import { useState } from "react"
 
 interface ConversationInsightsProps {
   score: number
@@ -12,7 +11,6 @@ export default function ConversationInsights({ score }: ConversationInsightsProp
   const percentage = score * 100
   const circumference = 2 * Math.PI * 50 // r = 50
   const strokeDashoffset = circumference - (percentage / 100) * circumference
-
 
   return (
     <div className="bg-[#0c0c1d] rounded-xl p-6 border border-purple-900/50 shadow-[0_0_15px_rgba(139,92,246,0.15)]">
