@@ -41,36 +41,38 @@ export default function Attributes() {
 
       <div className="space-y-4">
         {sellers.map((seller) => (
-          <div key={seller.id} className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-[#1a1a2e] rounded-lg overflow-hidden flex items-center justify-center">
-                <Image
-                  src={seller.image || "/placeholder.svg"}
-                  alt={seller.product}
-                  width={48}
-                  height={48}
-                  className="object-cover"
-                />
-              </div>
-              <div>
-                <div className="font-semibold text-lg">{seller.product}</div>
-                <div className="text-gray-400">{seller.seller}</div>
-              </div>
-            </div>
-            <div className="flex items-center gap-4">
-              <div className="text-gray-400">{seller.location}</div>
-              <button
-                onClick={() => setSelectedSeller(selectedSeller === seller.id ? null : seller.id)}
-                className="text-purple-500 hover:text-purple-400 text-sm"
-              >
-                {selectedSeller === seller.id ? "Hide Details" : "View Details"}
-              </button>
-              {selectedSeller === seller.id && (
-                <div className="absolute left-0 right-0 mt-2 p-4 bg-[#1a1a2e] rounded-lg border border-purple-900/50 shadow-lg">
-                  <p className="text-gray-300 text-sm">{seller.details}</p>
+          <div key={seller.id} className="flex flex-col">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-[#1a1a2e] rounded-lg overflow-hidden flex items-center justify-center">
+                  <Image
+                    src={seller.image || "/placeholder.svg"}
+                    alt={seller.product}
+                    width={48}
+                    height={48}
+                    className="object-cover"
+                  />
                 </div>
-              )}
+                <div>
+                  <div className="font-semibold text-lg">{seller.product}</div>
+                  <div className="text-gray-400">{seller.seller}</div>
+                </div>
+              </div>
+              <div className="flex items-center gap-4">
+                <div className="text-gray-400">{seller.location}</div>
+                <button
+                  onClick={() => setSelectedSeller(selectedSeller === seller.id ? null : seller.id)}
+                  className="text-purple-500 hover:text-purple-400 text-sm"
+                >
+                  {selectedSeller === seller.id ? "Hide Details" : "View Details"}
+                </button>
+              </div>
             </div>
+            {selectedSeller === seller.id && (
+              <div className="mt-4 p-4 bg-[#1a1a2e] rounded-lg border border-purple-900/50 transition-all duration-300 ease-in-out">
+                <p className="text-gray-300 text-sm">{seller.details}</p>
+              </div>
+            )}
           </div>
         ))}
       </div>
