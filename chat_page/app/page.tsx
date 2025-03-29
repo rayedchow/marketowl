@@ -11,7 +11,7 @@ export default function Home() {
     <div className="flex flex-col min-h-screen bg-[#0a0a0f] text-white overflow-hidden">
       {/* Header */}
       <header className="flex items-center justify-between p-6">
-        <h1 className="text-3xl font-bold">Jindal</h1>
+        <h1 className="text-3xl font-bold">Market Owl</h1>
         <div className="relative max-w-md w-full">
           <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
             <Search className="h-5 w-5 text-purple-500" />
