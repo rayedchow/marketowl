@@ -49,7 +49,6 @@ export default function Bar() {
   const handleUrlSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (listingUrl.trim()) {
-<<<<<<< HEAD
       // Send the URL to the WebSocket server
       if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
         wsRef.current.send(JSON.stringify({ type: 'listing_url', url: listingUrl }))
@@ -59,23 +58,13 @@ export default function Bar() {
       }
       
       setIsUrlSubmitted(true)
-=======
-      setIsUrlSubmitted(true);
->>>>>>> 97f6571be1d89f66c54c99b30a4d3d986b371a08
     }
   };
 
   const handleAnotherListing = () => {
-<<<<<<< HEAD
-    setListingUrl('')
-    setIsUrlSubmitted(false)
-  }
-  
-=======
     setListingUrl("");
     setIsUrlSubmitted(false);
   };
->>>>>>> 97f6571be1d89f66c54c99b30a4d3d986b371a08
   return (
     <div className="rounded-xl">
       {!isUrlSubmitted ? (
