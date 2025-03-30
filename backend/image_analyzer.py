@@ -6,11 +6,6 @@ from PIL import Image
 from pydantic import BaseModel
 from fastapi import FastAPI, HTTPException
 from typing import Optional
-<<<<<<< HEAD
-=======
-
-app = FastAPI(title="Image Defect Analyzer API")
->>>>>>> 6fd4cd0326ccb8c2719348fea613b59908d05eac
 
 app = FastAPI(title="Image Defect Analyzer API")
 

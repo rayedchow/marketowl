@@ -9,6 +9,14 @@ from openai import OpenAI
 import asyncio
 import threading
 from simulation import simulation_algorithm
+from websocket_state import active_connections
+import random
+# Add Selenium imports at the top level
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
+from bs4 import BeautifulSoup
+import time
 
 app = FastAPI()
 client = OpenAI(
@@ -16,6 +24,9 @@ client = OpenAI(
 	api_key="super-secret-key"
 )  # Initialize OpenAI client
 current_chat_data = []
+# Store the messenger tab handle globally
+messenger_tab_handle = None
+messenger_driver = None
 
 # Configure CORS for Next.js frontend
 app.add_middleware(
@@ -25,9 +36,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# Store active connections
-active_connections: List[WebSocket] = []
 flaws = []
 
 # Update on Facebook Marketplace
@@ -39,14 +47,17 @@ async def update_suggestions(message: str):
         except Exception as e:
             print(f"Error sending message to client: {e}")
 
-async def trigger_response(listing_data, flaw_data):
+async def trigger_response(listing_data, flaw_data, broadcast_callback):
     global current_chat_data  # Add this line to access the global variable
     chat_history_str = " ".join(f"{msg['sender'].capitalize()}: {msg['message']}" for msg in current_chat_data)
     print(f"Chat history: {chat_history_str}")
-    await simulation_algorithm(listing_data, flaw_data, chat_history_str)
+    return await simulation_algorithm(listing_data, flaw_data, chat_history_str, broadcast_callback)
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
+    # Declare globals at the beginning of the function
+    global messenger_driver, messenger_tab_handle, current_chat_data
+    
     await websocket.accept()
     print('WebSocket connection accepted')
     active_connections.append(websocket)
@@ -58,8 +69,30 @@ async def websocket_endpoint(websocket: WebSocket):
             # Parse the JSON data
             try:
                 data_json = json.loads(data)
+
+                if data_json.get('type') == 'send':
+                    message = data_json.get('message')
+                    # Use the stored driver and tab handle to send a message
+                    if messenger_driver and messenger_tab_handle:
+                        # Run in a separate thread to avoid blocking the WebSocket
+                        threading.Thread(
+                            target=send_message_to_messenger,
+                            args=(messenger_driver, messenger_tab_handle, message)
+                        ).start()
+                        await websocket.send_text(json.dumps({"type": "message-sent", "status": "success"}))
+                    else:
+                        await websocket.send_text(json.dumps({"type": "message-sent", "status": "error", "message": "Messenger tab not connected"}))
                 
-                if data_json.get('type') == 'listing_url':
+                if data_json.get('type') == 'simulate':
+                    # Check Messenger chat data when simulate is triggered
+                    chat_data, driver, tab_handle = extract_messages_from_selenium()
+                    # Store the driver and tab handle globally
+                    messenger_driver = driver
+                    messenger_tab_handle = tab_handle
+                    
+                    current_chat_data = chat_data
+                    print(f"Updated chat data: {chat_data}")
+                    
                     url = data_json.get('url')
                     print(f"Processing URL: {url}")
                     
@@ -72,7 +105,7 @@ async def websocket_endpoint(websocket: WebSocket):
                             try:
                                 print('Sending request to scraper service')
                                 response = await httpclient.post(
-                                    "https://harper-represent-revised-coastal.trycloudflare.com/scrape",
+                                    "https://pools-isp-marble-international.trycloudflare.com/scrape",
                                     json={"url": url}
                                 )
                                 print(f'Response status: {response.status_code}')
@@ -102,8 +135,17 @@ async def websocket_endpoint(websocket: WebSocket):
                                                 try:
                                                     flaw_data = flaw_response.json()
                                                     print(f"Flaw analysis result: {flaw_data}")
-                                                    # Add await here to properly call the async function
-                                                    await trigger_response(listing_data, flaw_data)
+                                                    # Define broadcastCallback with access to asyncio
+                                                    async def broadcastCallback(data):
+                                                        import asyncio  # Add local import to ensure availability
+                                                        print(f"Broadcasting to WebSocket: {data}") 
+                                                        try:
+                                                            await asyncio.gather(*[connection.send_text(data) for connection in active_connections])
+                                                            await asyncio.sleep(0)  # Forces WebSocket to process immediately
+                                                        except Exception as e:
+                                                            print(f"Error sending WebSocket message: {e}")
+                                                    algorithm_results = await trigger_response(listing_data, flaw_data, broadcastCallback)
+                                                    await websocket.send_text(json.dumps({"type": "results", "flaws": flaw_data, "algorithm_results": algorithm_results, "engagement": random.randint(60, 100)}))
                                                 except json.JSONDecodeError as je:
                                                     print(f"Invalid JSON in flaw analysis response: {flaw_response.text}")
                                                     flaw_data = {"defects": []}
@@ -140,33 +182,22 @@ async def websocket_endpoint(websocket: WebSocket):
         active_connections.remove(websocket)
         print("WebSocket connection closed")
 
-async def trigger_simulation(message_text="Hello!"):
+# Function to send a message using the stored driver and tab handle
+def send_message_to_messenger(driver, tab_handle, message_text):
     try:
-        completion = client.chat.completions.create(
-            model="charlesfrye/Ministral-8B-Instruct-2410-FP8-Dynamic",
-            messages=[
-                {"role": "system", "content": "You are a helpful assistant that gets the connotation of the message." },
-                {"role": "user", "content": message_text}
-            ],
-            extra_body={"guided_choice": ["positive", "negative"]},
-        )
-
-        connotation = completion.choices[0].message.content
-        print(f"Message: {message_text}")
-        print(f"Connotation: {connotation}")
-        return connotation
+        # Switch to the messenger tab
+        driver.switch_to.window(tab_handle)
+        # Send the message
+        send_message(driver, message_text)
+        return True
     except Exception as e:
-        print(f"Error in OpenAI API call: {e}")
-        return None
+        print(f"Error sending message to Messenger: {e}")
+        return False
 
-# Move the Selenium code to a separate function that can run in a background thread
-def run_selenium_loop():
-    from selenium import webdriver
-    from selenium.webdriver.common.by import By
-    from selenium.webdriver.common.keys import Keys
-    from bs4 import BeautifulSoup
-    import time
-
+# Extract messages function moved outside the selenium loop
+def extract_messages_from_selenium():
+    # Remove duplicate imports since they're now at the top level
+    
     # Connect to running Arc instance
     chrome_options = webdriver.ChromeOptions()
     chrome_options.debugger_address = "127.0.0.1:9222"
@@ -181,7 +212,7 @@ def run_selenium_loop():
     for handle in driver.window_handles:
         driver.switch_to.window(handle)
         print(driver.title)
-        if "Facebook" in driver.title or "messenger.com" in driver.current_url:
+        if "Messenger | Facebook" in driver.title or "messenger.com" in driver.current_url:
             messenger_tab = handle
             break
     
@@ -191,10 +222,7 @@ def run_selenium_loop():
     else:
         print("Messenger tab not found!")
         driver.quit()
-        return
-    
-    # Now, extract messages from the correct tab
-    # messages = driver.find_elements(By.CSS_SELECTOR, 'div[dir="auto"]')
+        return [], None, None
     
     def extract_messages(driver, html):
         soup = BeautifulSoup(html, 'html.parser')
@@ -225,44 +253,36 @@ def run_selenium_loop():
         
         return chat_data
     
-    def send_message(driver, message_text):
-        try:
-            # Find the message input box (Messenger chatbox)
-            chatbox = driver.find_element(By.CSS_SELECTOR, 'div[contenteditable="true"][role="textbox"]')
-            
-            # Click the chatbox to focus (optional but helps ensure input works)
-            chatbox.click()
-            
-            # Type the message
-            chatbox.send_keys(message_text)
-            time.sleep(1)  # Allow time for input
-            
-            # Press Enter to send the message
-            chatbox.send_keys(Keys.RETURN)
-            print(f"Sent: {message_text}")
-    
-        except Exception as e:
-            print("Error sending message:", str(e))
-    
-    while True:
-        chat_data = extract_messages(driver, driver.page_source)
-        global current_chat_data
-        if(chat_data != current_chat_data):
-            current_chat_data = chat_data
-            # trigger_simulation()
-            print(chat_data)
-        time.sleep(10)
+    # Extract messages once and return the result
+    chat_data = extract_messages(driver, driver.page_source)
+    # Return the chat data, driver, and tab handle
+    return chat_data, driver, messenger_tab
 
-# Start the Selenium loop in a separate thread when the app starts
+# Keep the send_message function for potential future use
+def send_message(driver, message_text):
+    try:
+        # Find the message input box (Messenger chatbox)
+        chatbox = driver.find_element(By.CSS_SELECTOR, 'div[contenteditable="true"][role="textbox"]')
+        
+        # Click the chatbox to focus (optional but helps ensure input works)
+        chatbox.click()
+        
+        # Type the message
+        print(message_text)
+        chatbox.send_keys(message_text)
+        time.sleep(1)  # Allow time for input
+
+        print(f"Sent: {message_text}")
+
+    except Exception as e:
+        print("Error sending message:", str(e))
+
+# Remove the continuous selenium loop and update startup event
 @app.on_event("startup")
 def startup_event():
     print("FastAPI server starting up...")
     print("WebSocket endpoint registered at ws://localhost:8000/ws")
-    
-    # Start the Selenium loop in a background thread
-    selenium_thread = threading.Thread(target=run_selenium_loop, daemon=True)
-    selenium_thread.start()
-    print("Selenium thread started")
+    print("Selenium will be triggered on simulate events")
 
 # Add this at the bottom of your file to ensure the app runs
 if __name__ == "__main__":

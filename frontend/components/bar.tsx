@@ -1,62 +1,13 @@
-import { useState, useEffect, useRef } from "react"
+import { useState } from "react"
 
-export default function Bar() {
+export default function Bar(props: { onSubmit: (url: string) => void }) {
   const [listingUrl, setListingUrl] = useState<string>('')
   const [isUrlSubmitted, setIsUrlSubmitted] = useState(false)
-  const wsRef = useRef<WebSocket | null>(null)
-
-  useEffect(() => {
-    // Initialize WebSocket connection
-    console.log('starting WebSocket connection attempt')
-    
-    // Add connection retry logic
-    const connectWebSocket = () => {
-      try {
-        wsRef.current = new WebSocket('ws://localhost:8000/ws')
-        
-        wsRef.current.onopen = () => {
-          console.log('WebSocket connection established')
-        }
-        
-        wsRef.current.onclose = (event) => {
-          console.log(`WebSocket connection closed: ${event.code} ${event.reason}`)
-          // Attempt to reconnect after 3 seconds if not intentionally closed
-          if (!wsRef.current?.CLOSING) {
-            setTimeout(connectWebSocket, 3000)
-          }
-        }
-        
-        wsRef.current.onerror = (error) => {
-          console.error('WebSocket error:', error)
-        }
-      } catch (error) {
-        console.error('Failed to create WebSocket connection:', error)
-        // Attempt to reconnect after 3 seconds
-        setTimeout(connectWebSocket, 3000)
-      }
-    }
-    
-    connectWebSocket()
-    
-    // Clean up WebSocket connection on component unmount
-    return () => {
-      if (wsRef.current) {
-        wsRef.current.close()
-      }
-    }
-  }, [])
 
   const handleUrlSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (listingUrl.trim()) {
-      // Send the URL to the WebSocket server
-      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-        wsRef.current.send(JSON.stringify({ type: 'listing_url', url: listingUrl }))
-        console.log('Sent URL to WebSocket server:', listingUrl)
-      } else {
-        console.error('WebSocket is not connected')
-      }
-      
+      props.onSubmit(listingUrl)
       setIsUrlSubmitted(true)
     }
   };

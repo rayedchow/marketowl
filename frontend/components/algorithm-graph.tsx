@@ -2,225 +2,171 @@
 
 import { useEffect, useState } from "react";
 
-interface Node {
+interface GridCell {
   id: string;
-  x: number;
-  y: number;
-  type: "root" | "buyer" | "seller";
-  intensity: number;
-  active: boolean;
-  shade?: number;
-  label?: string;
+  value: number;
+  color: string;
 }
 
-export default function AlgorithmGraph() {
-  const [nodes, setNodes] = useState<Node[]>([]);
-  const [isAnimating, setIsAnimating] = useState(true);
-
+export default function AlgorithmGraph(props: { onSimulate: () => void }) {
+  const [cells, setCells] = useState<GridCell[]>([]);
+  const [socket, setSocket] = useState<WebSocket | null>(null);
+  const [currentPosition, setCurrentPosition] = useState({ row: 0, col: 0 });
+  const [isLoading, setIsLoading] = useState(false);
+  
+  // Initialize grid with fewer columns for better fit
   useEffect(() => {
-    const generateNodes = () => {
-      const newNodes: Node[] = [];
-
-      // Root node (Facebook conversation)
-      newNodes.push({
-        id: "root",
-        x: 100,
-        y: 100,
-        type: "root",
-        intensity: 1,
-        active: true,
-        label: "Existing Conversation",
-      });
-
-      // Layer 1: 3 example buyer nodes
-      for (let i = 0; i < 3; i++) {
-        newNodes.push({
-          id: `l1-${i}`,
-          x: 250 + i * 100,
-          y: 100,
-          type: "buyer",
-          intensity: 0,
-          active: false,
-          label: i === 1 ? "10 Possible\nBuyer Messages" : "",
+    const rows = 6;
+    const cols = 8; // Reduced from 12 to 8 columns
+    const initialCells: GridCell[] = [];
+    
+    for (let i = 0; i < rows; i++) {
+      for (let j = 0; j < cols; j++) {
+        initialCells.push({
+          id: `cell-${i}-${j}`,
+          value: 0,
+          color: '#4a5568' // Neutral starting color
         });
       }
-
-      // Layer 2: 3 seller nodes (from middle buyer)
-      for (let i = 0; i < 3; i++) {
-        newNodes.push({
-          id: `l2-${i}`,
-          x: 350,
-          y: 200 + i * 80,
-          type: "seller",
-          intensity: 0,
-          active: false,
-          shade: i,
-          label: i === 1 ? "3 Seller\nResponses Each" : "",
-        });
-      }
-
-      // Layer 3: 3 buyer nodes (from middle seller)
-      for (let i = 0; i < 3; i++) {
-        newNodes.push({
-          id: `l3-${i}`,
-          x: 500,
-          y: 280 + i * 60,
-          type: "buyer",
-          intensity: 0,
-          active: false,
-          label: i === 1 ? "3 Buyer\nResponses Each" : "",
-        });
-      }
-
-      // Layer 4: 3 seller nodes (from middle buyer)
-      for (let i = 0; i < 3; i++) {
-        newNodes.push({
-          id: `l4-${i}`,
-          x: 650,
-          y: 320 + i * 40,
-          type: "seller",
-          intensity: 0,
-          active: false,
-          shade: i,
-          label: i === 1 ? "3 Seller\nResponses Each" : "",
-        });
-      }
-
-      return newNodes;
-    };
-
-    setNodes(generateNodes());
+    }
+    
+    setCells(initialCells);
   }, []);
-
+  
+  // Setup WebSocket connection
   useEffect(() => {
-    if (!isAnimating) return;
-
-    const animateNodes = () => {
-      setNodes((prev) => {
-        const newNodes = [...prev];
-        let shouldContinue = false;
-
-        newNodes.forEach((node) => {
-          if (node.intensity < 1 && node.active) {
-            node.intensity = Math.min(1, node.intensity + 0.1);
-            shouldContinue = true;
-          }
-        });
-
-        const layers = [
-          [newNodes[0]], // root
-          newNodes.slice(1, 4), // layer 1
-          newNodes.slice(4, 7), // layer 2
-          newNodes.slice(7, 10), // layer 3
-          newNodes.slice(10), // layer 4
-        ];
-
-        for (let i = 0; i < layers.length; i++) {
-          const layer = layers[i];
-          const isLayerComplete = layer.every((node) => node.intensity === 1);
-
-          if (isLayerComplete && i < layers.length - 1) {
-            layers[i + 1].forEach((node) => {
-              if (!node.active) {
-                node.active = true;
-                shouldContinue = true;
-              }
-            });
-          }
-        }
-
-        if (!shouldContinue) {
-          setIsAnimating(false);
-        }
-
-        return newNodes;
-      });
+    // Create WebSocket connection
+    const ws = new WebSocket('ws://localhost:8000/ws'); // Replace with your actual WebSocket endpoint
+    
+    ws.onopen = () => {
+      console.log('WebSocket connection established');
+      setSocket(ws);
     };
+    
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data).data;
+        
+        // Check for score parameter in the data
+        if (typeof data.score === 'number') {
+          console.log(data.score);
+          updateRandomCell(Math.round(data.score*100)/100);
+          setIsLoading(false); // Turn off loading when response received
+        }
+      } catch (error) {
+        console.error('Error processing WebSocket message:', error);
+        setIsLoading(false); // Turn off loading on error too
+      }
+    };
+    
+    ws.onerror = (error) => {
+      console.error('WebSocket error:', error);
+    };
+    
+    ws.onclose = () => {
+      console.log('WebSocket connection closed');
+      setSocket(null);
+    };
+    
+    return () => {
+      ws.close();
+    };
+  }, []);
+  
+  // Function to update a random cell
+  const updateRandomCell = (score: number) => {
+    const rows = 6;
+    const cols = 8;
+    
+    // Generate random row and column
+    const randomRow = Math.floor(Math.random() * rows);
+    const randomCol = Math.floor(Math.random() * cols);
+    const cellIndex = randomRow * cols + randomCol;
+    
+    // Update the grid cells
+    setCells(prevCells => {
+      const newCells = [...prevCells];
+      if (cellIndex < newCells.length) {
+        const color = getColorForValue(score);
+        newCells[cellIndex] = {
+          ...newCells[cellIndex],
+          value: score,
+          color: color
+        };
+      }
+      return newCells;
+    });
+  };
+  
+  // Helper function to generate color based on value
+  const getColorForValue = (intensity: number) => {
+    // For values from -1 to 1
+    // Negative values (red): -1 to 0
+    // Positive values (green): 0 to 1
+    // Neutral (gray): exactly 0
+    
+    if (intensity === 0) return '#4a5568'; // Neutral gray for zero
+    
+    if (intensity < 0) {
+      // Red for negative values, more intense as it approaches -1
+      const redIntensity = Math.min(1, Math.abs(intensity));
+      return `rgba(239, 68, 68, ${redIntensity})`; // Red with varying opacity
+    } else {
+      // Green for positive values, more intense as it approaches 1
+      return `rgba(34, 197, 94, ${intensity})`; // Green with varying opacity
+    }
+  };
 
-    const interval = setInterval(animateNodes, 50);
-    return () => clearInterval(interval);
-  }, [isAnimating]);
-
-  const getNodeColor = (node: Node) => {
-    if (node.type === "root") return "#347fc4";
-    if (node.type === "buyer") return "#4ade80";
-    const colors = [
-      "rgba(255, 99, 99, 0.9)",
-      "rgba(255, 50, 50, 0.9)",
-      "rgba(200, 0, 0, 0.9)",
-    ];
-    return colors[node.shade || 0];
+  // Function to handle simulation button click
+  const handleSimulate = () => {
+    setIsLoading(true); // Set loading state to true when button is clicked
+    props.onSimulate(); // Call the provided onSimulate function
   };
 
   return (
-    <div className="w-full bg-[#272838] rounded-xl p-6 border border-[#7d6b91]/30 mt-6">
-      <h3 className="text-lg font-semibold text-[#989fce] mb-4">
-        Algorithm Design
-      </h3>
-      <div className="relative w-full h-[500px] overflow-x-auto">
-        <svg width="800" height="500" className="mx-auto">
-          {/* Draw connecting lines */}
-          {nodes.map((node, i) => {
-            if (i === 0) return null;
-            let parentIndex;
-            if (i <= 3) {
-              // Layer 1
-              parentIndex = 0;
-            } else if (i <= 6) {
-              // Layer 2
-              parentIndex = 2; // Connect to middle buyer node
-            } else if (i <= 9) {
-              // Layer 3
-              parentIndex = 5; // Connect to middle seller node
-            } else {
-              // Layer 4
-              parentIndex = 8; // Connect to middle buyer node
-            }
-            const parent = nodes[parentIndex];
-            return (
-              <line
-                key={`line-${node.id}`}
-                x1={parent.x}
-                y1={parent.y}
-                x2={node.x}
-                y2={node.y}
-                stroke={`rgba(152,159,206,${node.intensity * 0.3})`}
-                strokeWidth="2"
-                strokeDasharray="4"
-              />
-            );
-          })}
-
-          {/* Draw nodes */}
-          {nodes.map((node) => (
-            <g key={node.id}>
-              <circle
-                cx={node.x}
-                cy={node.y}
-                r={20}
-                fill={getNodeColor(node)}
-                opacity={node.intensity}
-                className="transition-all duration-300"
-              />
-              {node.label && (
-                <text
-                  x={node.x}
-                  y={node.type === "root" ? node.y - 40 : node.y + 40}
-                  textAnchor="middle"
-                  fill="#989fce"
-                  opacity={node.intensity}
-                  className="text-sm"
-                >
-                  {node.label.split("\n").map((line, i) => (
-                    <tspan key={i} x={node.x} dy={i === 0 ? 0 : 20}>
-                      {line}
-                    </tspan>
-                  ))}
-                </text>
-              )}
-            </g>
+    <div className="w-full bg-[#272838] rounded-xl p-4 border border-[#7d6b91]/30">
+      <div className="flex justify-between items-center mb-3">
+        <h3 className="text-lg font-semibold text-[#989fce]">
+          Owl's Nest
+        </h3>
+        {/* Button with loading state */}
+        {isLoading ? (
+          <div className="px-2 py-1 bg-indigo-600 text-white text-xs rounded flex items-center">
+            <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            Processing...
+          </div>
+        ) : (
+          <button 
+            onClick={handleSimulate}
+            className="px-2 py-1 bg-indigo-600 text-white text-xs rounded hover:bg-indigo-700 transition-colors"
+          >
+            Simulate
+          </button>
+        )}
+      </div>
+      
+      <div className="relative w-full overflow-hidden">
+        <div className="grid grid-cols-8 gap-1 mx-auto">
+          {cells.map((cell) => (
+            <div
+              key={cell.id}
+              className="aspect-square flex items-center justify-center rounded-md transition-all duration-300 ease-in-out"
+              style={{ 
+                backgroundColor: cell.color,
+                minWidth: '30px',
+                minHeight: '30px',
+                width: '100%'
+              }}
+            >
+              <span className="text-white font-mono font-bold text-xs">
+                {cell.value}
+              </span>
+            </div>
           ))}
-        </svg>
+        </div>
       </div>
     </div>
   );
