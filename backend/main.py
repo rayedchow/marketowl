@@ -3,8 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from typing import List, Optional
 from pydantic import BaseModel
 import json
-import httpx  # Add this import
-# from facebook_marketplace_scraper import scrape_listing
+import httpx 
 from image_analyzer import analyze_image_with_llama
 from openai import OpenAI
 import asyncio
@@ -41,7 +40,7 @@ async def update_suggestions(message: str):
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
-    print('socket')
+    print('WebSocket connection accepted')
     active_connections.append(websocket)
     try:
         while True:
@@ -56,30 +55,63 @@ async def websocket_endpoint(websocket: WebSocket):
                     url = data_json.get('url')
                     print(f"Processing URL: {url}")
                     
-                    # Import httpx if not already imported
-                    import httpx
-                    
-                    async with httpx.AsyncClient() as httpclient:
-                        response = await httpclient.post(
-                            "http://localhost:9000/scrape",
-                            json={"url": url}
-                        )
-                        if response.status_code == 200:
-                            result = response.json()
-                            # Process the result as needed
-                            print(f"Scrape result: {result}")
-                            
-                            # You can still use your image analyzer if needed
-                            # flaws = analyze_image_with_llama(url)
-                            # print(flaws)
-                            
-                            # Send results back to the client
-                            await websocket.send_text(json.dumps({"flaws": flaws, "scrape_data": result}))
-                        else:
-                            print(f"Error from scrape service: {response.text}")
-                            await websocket.send_text(json.dumps({"error": "Failed to scrape listing"}))
-                    # get flaws
-                    # store data
+                    try:
+                        # Import httpx if not already imported
+                        import httpx
+                        
+                        print('Initiating HTTP request to scraper service')
+                        async with httpx.AsyncClient(timeout=30.0) as httpclient:
+                            try:
+                                print('Sending request to scraper service')
+                                response = await httpclient.post(
+                                    "https://readily-score-commissioner-six.trycloudflare.com/scrape",
+                                    json={"url": url}
+                                )
+                                print(f'Response status: {response.status_code}')
+                                
+                                if response.status_code == 200:
+                                    result = response.json()
+                                    print(f"Scrape result: {result}")
+
+                                    # Fix: Await the coroutine function
+                                    # Replace analyze_image_with_llama with direct POST request
+                                    try:
+                                        async with httpx.AsyncClient() as analysis_client:
+                                            flaw_response = await analysis_client.post(
+                                                "https://suffer-basement-borders-dee.trycloudflare.com/analyze-image",
+                                                json={"image_url": result["image_url"]},
+                                                timeout=30.0
+                                            )
+                                            
+                                            # Check if response is valid
+                                            if flaw_response.status_code == 200:
+                                                try:
+                                                    flaw_data = flaw_response.json()
+                                                    print(f"Flaw analysis result: {flaw_data}")
+                                                except json.JSONDecodeError as je:
+                                                    print(f"Invalid JSON in flaw analysis response: {flaw_response.text}")
+                                                    flaw_data = {"defects": []}
+                                            else:
+                                                print(f"Error from analysis service: {flaw_response.status_code} - {flaw_response.text}")
+                                                flaw_data = {"defects": [{"description": f"Error: {flaw_response.status_code}", "location": ["unknown"]}]}
+                                    except Exception as e:
+                                        print(f"Error during image analysis request: {str(e)}")
+                                        flaw_data = {"defects": [{"description": f"Error: {str(e)}", "location": ["unknown"]}]}
+                                    
+                                    # Send results back to the client
+                                    await websocket.send_text(json.dumps({"flaws": flaws, "scrape_data": result}))
+                                else:
+                                    error_msg = f"Error from scrape service: {response.status_code}"
+                                    print(error_msg)
+                                    await websocket.send_text(json.dumps({"error": error_msg}))
+                            except httpx.RequestError as exc:
+                                error_msg = f"HTTP Request failed: {exc}"
+                                print(error_msg)
+                                await websocket.send_text(json.dumps({"error": error_msg}))
+                    except Exception as e:
+                        error_msg = f"Error during HTTP request: {str(e)}"
+                        print(error_msg)
+                        await websocket.send_text(json.dumps({"error": error_msg}))
                 else:
                     print(f"Unknown message type: {data_json.get('type')}")
             except json.JSONDecodeError:
@@ -90,6 +122,7 @@ async def websocket_endpoint(websocket: WebSocket):
         print(f"WebSocket error: {e}")
     finally:
         active_connections.remove(websocket)
+        print("WebSocket connection closed")
 
 async def trigger_simulation(message_text="Hello!"):
     try:
