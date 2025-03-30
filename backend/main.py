@@ -8,12 +8,14 @@ from image_analyzer import analyze_image_with_llama
 from openai import OpenAI
 import asyncio
 import threading
+from simulation import simulation_algorithm
 
 app = FastAPI()
 client = OpenAI(
     base_url="https://rayedchow--example-vllm-openai-compatible-serve.modal.run/v1",
 	api_key="super-secret-key"
 )  # Initialize OpenAI client
+current_chat_data = []
 
 # Configure CORS for Next.js frontend
 app.add_middleware(
@@ -36,6 +38,12 @@ async def update_suggestions(message: str):
             # TODO: send actual suggestions for the frontend to format and display
         except Exception as e:
             print(f"Error sending message to client: {e}")
+
+async def trigger_response(listing_data, flaw_data):
+    global current_chat_data  # Add this line to access the global variable
+    chat_history_str = " ".join(f"{msg['sender'].capitalize()}: {msg['message']}" for msg in current_chat_data)
+    print(f"Chat history: {chat_history_str}")
+    await simulation_algorithm(listing_data, flaw_data, chat_history_str)
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
@@ -64,7 +72,7 @@ async def websocket_endpoint(websocket: WebSocket):
                             try:
                                 print('Sending request to scraper service')
                                 response = await httpclient.post(
-                                    "https://readily-score-commissioner-six.trycloudflare.com/scrape",
+                                    "https://harper-represent-revised-coastal.trycloudflare.com/scrape",
                                     json={"url": url}
                                 )
                                 print(f'Response status: {response.status_code}')
@@ -72,6 +80,11 @@ async def websocket_endpoint(websocket: WebSocket):
                                 if response.status_code == 200:
                                     result = response.json()
                                     print(f"Scrape result: {result}")
+                                    listing_data = {
+                                        'title': result['title'],
+                                        'price': result['price'],
+                                        'description': result['description']
+                                    }
 
                                     # Fix: Await the coroutine function
                                     # Replace analyze_image_with_llama with direct POST request
@@ -82,12 +95,15 @@ async def websocket_endpoint(websocket: WebSocket):
                                                 json={"image_url": result["image_url"]},
                                                 timeout=30.0
                                             )
+
                                             
                                             # Check if response is valid
                                             if flaw_response.status_code == 200:
                                                 try:
                                                     flaw_data = flaw_response.json()
                                                     print(f"Flaw analysis result: {flaw_data}")
+                                                    # Add await here to properly call the async function
+                                                    await trigger_response(listing_data, flaw_data)
                                                 except json.JSONDecodeError as je:
                                                     print(f"Invalid JSON in flaw analysis response: {flaw_response.text}")
                                                     flaw_data = {"defects": []}
@@ -205,7 +221,7 @@ def run_selenium_loop():
             
             for item in chat_data:
                 item_classes = BeautifulSoup(item['sender'], 'html.parser').div.get('class', [])
-                item["sender"] = "me" if item_classes == first_class else "receiver"
+                item["sender"] = "buyer" if item_classes == first_class else "seller"
         
         return chat_data
     
@@ -228,9 +244,9 @@ def run_selenium_loop():
         except Exception as e:
             print("Error sending message:", str(e))
     
-    current_chat_data = []
     while True:
         chat_data = extract_messages(driver, driver.page_source)
+        global current_chat_data
         if(chat_data != current_chat_data):
             current_chat_data = chat_data
             # trigger_simulation()

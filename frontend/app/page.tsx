@@ -4,6 +4,8 @@ import ConversationInsights from "@/components/conversation-insights";
 import NearbySellers from "@/components/message-suggestions";
 import Attributes from "@/components/item-notes";
 import Bar from "@/components/bar";
+import MessagePropagation from "@/components/message-propagation";
+import AlgorithmGraph from "@/components/algorithm-graph";
 import Image from "next/image";
 
 export default function Home() {
@@ -11,26 +13,22 @@ export default function Home() {
   const conversationScore = 0.55;
 
   return (
-    <div className="flex flex-col min-h-screen bg-gradient-to-b from-[#0a0a0f] to-[#0c0c1d] text-white overflow-hidden">
+    <div className="flex flex-col min-h-screen bg-gradient-to-b from-[#1a1a2f] to-[#1c1c35] text-white overflow-hidden">
       {/* Header */}
-      <header className="flex items-center justify-between p-6 border-b border-purple-900/20">
+      <header className="flex items-center justify-between p-6 border-b border-purple-300/10">
         <div className="flex items-center gap-3">
           <Image
             src="/market-owl-logo.png"
             alt="Market Owl Logo"
             width={40}
             height={40}
-            className="w-16 h-16"
+            className="w-10 h-10"
           />
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-500 to-purple-300 bg-clip-text text-transparent">
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-400 to-purple-300 bg-clip-text text-transparent">
             Market Owl
           </h1>
         </div>
-        <div className="flex items-center gap-4">
-          <button className="px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-700 transition-colors">
-            Settings
-          </button>
-        </div>
+        <div className="flex items-center gap-4"></div>
       </header>
 
       {/* Main Content */}
@@ -38,6 +36,10 @@ export default function Home() {
         {/* Left Sidebar */}
         <div className="flex flex-col gap-8 w-full">
           <Bar />
+          <div className=" gap-8">
+            <AlgorithmGraph />
+            <MessagePropagation />
+          </div>
           <ConversationInsights score={conversationScore} />
           <NearbySellers />
           <Attributes />
