@@ -4,6 +4,10 @@ import base64
 from io import BytesIO
 from PIL import Image
 from pydantic import BaseModel
+from fastapi import FastAPI, HTTPException
+from typing import Optional
+
+app = FastAPI(title="Image Defect Analyzer API")
 
 class Defect(BaseModel):
     description: str
@@ -12,12 +16,19 @@ class Defect(BaseModel):
 class ImageAnalysisResponse(BaseModel):
     defects: list[Defect]
 
-async def download_image(url: str) -> bytes:
-    async with httpx.AsyncClient() as client:
-        response = await client.get(url)
-        return response.content
+class ImageAnalysisRequest(BaseModel):
+    image_url: str
 
-async def analyze_image_with_llama(image_url: str) -> str:
+async def download_image(url: str) -> bytes:
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(url)
+            response.raise_for_status()
+            return response.content
+    except httpx.HTTPError as e:
+        raise HTTPException(status_code=400, detail=f"Error downloading image: {str(e)}")
+
+async def analyze_image_with_llama(image_url: str) -> ImageAnalysisResponse:
     # Download the image
     image_data = await download_image(image_url)
 
@@ -37,15 +48,36 @@ async def analyze_image_with_llama(image_url: str) -> str:
         "simply analyze the provided image."
     )
 
-    # Call Llama via Ollama with the revised prompt and image
-    response = ollama.generate(
-        model='llama3.2-vision',
-        prompt=prompt,
-        images=[img_str],
-        format=ImageAnalysisResponse.model_json_schema()
-    )
+    try:
+        # Call Llama via Ollama with the revised prompt and image
+        response = ollama.generate(
+            model='llama3.2-vision',
+            prompt=prompt,
+            images=[img_str],
+            format=ImageAnalysisResponse.model_json_schema()
+        )
 
-    formattedResponse = ImageAnalysisResponse.model_validate_json(
-        response['response'])
+        formattedResponse = ImageAnalysisResponse.model_validate_json(
+            response['response'])
 
-    return formattedResponse
+        return formattedResponse
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error analyzing image: {str(e)}")
+
+@app.post("/analyze-image", response_model=ImageAnalysisResponse)
+async def analyze_image_endpoint(request: ImageAnalysisRequest):
+    """
+    Analyze an image for defects.
+    
+    Provide an image URL and receive a detailed analysis of any defects found.
+    """
+    return await analyze_image_with_llama(request.image_url)
+
+@app.get("/health")
+async def health_check():
+    """Health check endpoint"""
+    return {"status": "healthy"}
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=6000)
